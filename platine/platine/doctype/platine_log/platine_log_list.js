@@ -1,6 +1,6 @@
 frappe.listview_settings["Platine Log"] = {
 	onload(listview) {
-		listview.page.add_action_item(__("Clear All Logs"), () => {
+		listview.page.add_inner_button(__("Clear All Logs"), () => {
 			frappe.confirm(
 				__("Permanently delete all Platine Log entries?"),
 				() => {
