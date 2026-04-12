@@ -5,6 +5,7 @@ from platine.utils.logger import log_event, Timer
 
 @frappe.whitelist()
 def test_connection():
+    frappe.only_for("System Manager")
     """Test S3 connectivity. Returns dict {success, message}."""
     try:
         client = get_s3_client()

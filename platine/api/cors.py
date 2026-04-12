@@ -9,6 +9,7 @@ from platine.utils.logger import log_event, Timer
 @frappe.whitelist()
 def get_cors_config():
 	"""Read the current CORS configuration of the S3 bucket."""
+	frappe.only_for("System Manager")
 	try:
 		client = get_s3_client()
 		s = frappe.get_single("Platine Settings")
@@ -30,6 +31,7 @@ def set_cors_config(cors_config=None):
 	Apply the CORS JSON configuration to the bucket.
 	cors_config: JSON string with "CORSRules" key or a direct array.
 	"""
+	frappe.only_for("System Manager")
 	try:
 		client = get_s3_client()
 		s = frappe.get_single("Platine Settings")
