@@ -4,6 +4,9 @@ from platine.utils.s3 import generate_presigned_put, build_s3_key, set_object_ac
 from platine.utils.logger import log_event
 
 
+_PENDING_KEY_PREFIX = "platine_pending_upload:"
+
+
 @frappe.whitelist()
 def get_presigned_upload_url(filename, is_private=0, content_type="application/octet-stream"):
     """
@@ -17,12 +20,28 @@ def get_presigned_upload_url(filename, is_private=0, content_type="application/o
     # Sanitize filename
     filename = os.path.basename(filename)
 
+    settings = frappe.get_single("Platine Settings")
+
+    if not is_private:
+        cdn_url = (settings.cdn_url or "").rstrip("/")
+        if not cdn_url:
+            frappe.throw(frappe._("CDN URL must be configured in Platine Settings for public file uploads."))
+
     s3_key = build_s3_key(filename, is_private=bool(is_private))
+
+    expiry_seconds = (settings.presigned_url_expiry or 60) * 60
 
     upload_url = generate_presigned_put(
         s3_key=s3_key,
         content_type=content_type,
         is_private=bool(is_private),
+    )
+
+    # Register the pending upload in Redis so confirm_upload can verify ownership.
+    frappe.cache().set_value(
+        f"{_PENDING_KEY_PREFIX}{s3_key}",
+        frappe.session.user,
+        expires_in_sec=expiry_seconds,
     )
 
     result = {
@@ -32,8 +51,7 @@ def get_presigned_upload_url(filename, is_private=0, content_type="application/o
     }
 
     if not is_private:
-        settings = frappe.get_single("Platine Settings")
-        result["cdn_url"] = f"{settings.cdn_url.rstrip('/')}/{s3_key}"
+        result["cdn_url"] = f"{cdn_url}/{s3_key}"
 
     return result
 
@@ -46,14 +64,24 @@ def confirm_upload(s3_key, filename, is_private=0, file_size=0, doctype=None, do
     """
     frappe.has_permission("File", "create", throw=True)
 
+    # Verify the s3_key was issued to the current user by get_presigned_upload_url.
+    pending_user = frappe.cache().get_value(f"{_PENDING_KEY_PREFIX}{s3_key}")
+    if pending_user != frappe.session.user:
+        frappe.throw(frappe._("Invalid or expired upload token."), frappe.PermissionError)
+    frappe.cache().delete_value(f"{_PENDING_KEY_PREFIX}{s3_key}")
+
     is_private = frappe.utils.cint(is_private)
     file_size = frappe.utils.cint(file_size)
     settings = frappe.get_single("Platine Settings")
 
+    cdn_url = (settings.cdn_url or "").rstrip("/")
+
     if is_private:
         file_url = f"/private/files/{os.path.basename(filename)}"
     else:
-        file_url = f"{settings.cdn_url.rstrip('/')}/{s3_key}"
+        if not cdn_url:
+            frappe.throw(frappe._("CDN URL must be configured in Platine Settings for public file uploads."))
+        file_url = f"{cdn_url}/{s3_key}"
 
     file_doc = frappe.get_doc({
         "doctype": "File",
