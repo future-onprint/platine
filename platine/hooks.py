@@ -48,6 +48,9 @@ app_include_js = "/assets/platine/js/upload_override.js"
 doctype_js = {
 	"File": "public/js/file_share.js"
 }
+doctype_list_js = {
+	"Platine Log": "public/js/platine_log_list.js"
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
