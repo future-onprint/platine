@@ -26,6 +26,7 @@ app_license = "agpl-3.0"
 
 # include js, css files in header of desk.html
 # app_include_css = "/assets/platine/css/platine.css"
+app_include_js = "/assets/platine/js/upload_override.js"
 # app_include_js = "/assets/platine/js/platine.js"
 
 # include js, css files in header of web template
@@ -44,6 +45,9 @@ app_license = "agpl-3.0"
 
 # include js in doctype views
 # doctype_js = {"doctype" : "public/js/doctype.js"}
+doctype_js = {
+	"File": "public/js/file_share.js"
+}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -86,12 +90,12 @@ app_license = "agpl-3.0"
 # ------------
 
 # before_install = "platine.install.before_install"
-# after_install = "platine.install.after_install"
+after_install = "platine.install.after_install"
 
 # Uninstallation
 # ------------
 
-# before_uninstall = "platine.uninstall.before_uninstall"
+before_uninstall = "platine.uninstall.before_uninstall"
 # after_uninstall = "platine.uninstall.after_uninstall"
 
 # Integration Setup
@@ -140,26 +144,21 @@ app_license = "agpl-3.0"
 # 	}
 # }
 
+doc_events = {
+	"File": {
+		"after_insert": "platine.overrides.file.after_insert",
+		"on_trash": "platine.overrides.file.on_trash",
+	}
+}
+
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"platine.tasks.all"
-# 	],
-# 	"daily": [
-# 		"platine.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"platine.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"platine.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"platine.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"daily": [
+		"platine.tasks.daily_log_cleanup"
+	],
+}
 
 # Testing
 # -------
@@ -180,6 +179,10 @@ app_license = "agpl-3.0"
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "platine.event.get_events"
 # }
+
+override_whitelisted_methods = {
+	"frappe.core.doctype.file.file.download_file": "platine.overrides.file.download_file"
+}
 #
 # each overriding function accepts a `data` argument;
 # generated from the base implementation of the doctype dashboard,
