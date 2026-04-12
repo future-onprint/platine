@@ -1,6 +1,7 @@
 import frappe
 import json
 
+from botocore.exceptions import ClientError
 from platine.utils.s3 import get_s3_client
 from platine.utils.logger import log_event, Timer
 
@@ -13,8 +14,11 @@ def get_cors_config():
 		s = frappe.get_single("Platine Settings")
 		response = client.get_bucket_cors(Bucket=s.bucket_name)
 		return {"success": True, "config": response.get("CORSRules", [])}
-	except client.exceptions.NoSuchCORSConfiguration:
-		return {"success": True, "config": []}
+	except ClientError as e:
+		if e.response["Error"]["Code"] == "NoSuchCORSConfiguration":
+			return {"success": True, "config": []}
+		log_event(event_type="CORS", status="Error", message=str(e))
+		return {"success": False, "message": str(e)}
 	except Exception as e:
 		log_event(event_type="CORS", status="Error", message=str(e))
 		return {"success": False, "message": str(e)}
