@@ -9,11 +9,22 @@ EXTRA_TEST_RECORD_DEPENDENCIES = []
 IGNORE_TEST_RECORD_DEPENDENCIES = []
 
 
+_VALID_CREDENTIALS = {
+    "enabled": 1,
+    "access_key": "AKIAIOSFODNN7EXAMPLE",
+    "secret_key": "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+    "endpoint_url": "https://s3.fr-par.scw.cloud",
+    "bucket_name": "my-bucket",
+    "region": "fr-par",
+}
+
+
 class IntegrationTestPlatineSettings(IntegrationTestCase):
     """
     Unit tests for PlatineSettings (Single DocType).
 
     Tests cover:
+    - validate(): required fields when enabled=1
     - validate(): trailing slash rejection on URL fields
     - validate(): MIME type format validation for stream_mime_types
     - get_default_cors_config(): shape and content of the default CORS payload
@@ -24,6 +35,43 @@ class IntegrationTestPlatineSettings(IntegrationTestCase):
         doc = frappe.get_single("Platine Settings")
         doc.update(kwargs)
         return doc
+
+    def _enabled_doc(self, **kwargs):
+        """Return a doc with all required credentials set plus any overrides."""
+        return self._doc(**{**_VALID_CREDENTIALS, **kwargs})
+
+    # ── required fields when enabled ─────────────────────────────────────
+
+    def test_all_required_fields_present_accepted(self):
+        self._enabled_doc().validate()
+
+    def test_enabled_without_access_key_rejected(self):
+        with self.assertRaises(frappe.exceptions.ValidationError):
+            self._enabled_doc(access_key="").validate()
+
+    def test_enabled_without_secret_key_rejected(self):
+        with self.assertRaises(frappe.exceptions.ValidationError):
+            self._enabled_doc(secret_key="").validate()
+
+    def test_enabled_without_endpoint_url_rejected(self):
+        with self.assertRaises(frappe.exceptions.ValidationError):
+            self._enabled_doc(endpoint_url="").validate()
+
+    def test_enabled_without_bucket_name_rejected(self):
+        with self.assertRaises(frappe.exceptions.ValidationError):
+            self._enabled_doc(bucket_name="").validate()
+
+    def test_enabled_without_region_rejected(self):
+        with self.assertRaises(frappe.exceptions.ValidationError):
+            self._enabled_doc(region="").validate()
+
+    def test_disabled_with_missing_fields_accepted(self):
+        # Required-fields check is skipped when enabled=0
+        self._doc(enabled=0, access_key="", secret_key="", bucket_name="").validate()
+
+    def test_cdn_url_optional_when_enabled(self):
+        # cdn_url is not required — endpoint_url serves as fallback
+        self._enabled_doc(cdn_url="").validate()
 
     # ── URL trailing slash ────────────────────────────────────────────────
 
