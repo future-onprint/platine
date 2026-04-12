@@ -1,6 +1,6 @@
 {
  "actions": [],
- "autoname": "LOG-.DD.-.MM.-.YYYY.-.HH.-.mm.-.ss.-.##",
+ "autoname": "autoname",
  "creation": "2026-04-12 12:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
@@ -70,7 +70,7 @@
  "modified_by": "Administrator",
  "module": "Platine",
  "name": "Platine Log",
- "naming_rule": "Expression",
+ "naming_rule": "By script",
  "owner": "Administrator",
  "permissions": [
   {
