@@ -36,6 +36,7 @@
   "rollback_info",
   "rollback_status",
   "reprefix_section",
+  "reprefix_info",
   "reprefix_status",
   "advanced_tab",
   "streaming_section",
@@ -220,6 +221,11 @@
    "fieldname": "reprefix_section",
    "fieldtype": "Section Break",
    "label": "Folder Prefix Change"
+  },
+  {
+   "fieldname": "reprefix_info",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-info\" style=\"font-size:13px;padding:10px 14px;border-radius:6px;margin-bottom:12px\">\n  <strong>Folder prefix change</strong><br>\n  When you save a new <strong>Folder Prefix</strong> value, Platine automatically starts a background job that:<br>\n  <ul style=\"margin:6px 0 0 0\">\n    <li>Copies every S3 object from the old prefix to the new one</li>\n    <li>Deletes the originals from S3</li>\n    <li>Updates all public file URLs in the database</li>\n    <li>Updates <code>platine_s3_key</code> on every affected File document</li>\n  </ul>\n  <br>The job cannot be undone. Run a <strong>Rollback</strong> first if you want to revert to local storage.\n</div>"
   },
   {
    "fieldname": "reprefix_status",
