@@ -1,6 +1,6 @@
 import frappe
 import os
-from platine.utils.s3 import generate_presigned_put
+from platine.utils.s3 import generate_presigned_put, build_s3_key, set_object_acl
 
 
 @frappe.whitelist()
@@ -16,7 +16,7 @@ def get_presigned_upload_url(filename, is_private=0, content_type="application/o
     # Sanitize filename
     filename = os.path.basename(filename)
 
-    s3_key = f"{'private' if is_private else 'public'}/{filename}"
+    s3_key = build_s3_key(filename, is_private=bool(is_private))
 
     upload_url = generate_presigned_put(
         s3_key=s3_key,
@@ -38,7 +38,7 @@ def get_presigned_upload_url(filename, is_private=0, content_type="application/o
 
 
 @frappe.whitelist()
-def confirm_upload(s3_key, filename, is_private=0, doctype=None, docname=None, folder="Home/Attachments"):
+def confirm_upload(s3_key, filename, is_private=0, file_size=0, doctype=None, docname=None, folder="Home/Attachments"):
     """
     Called after successful direct S3 upload.
     Creates the corresponding Frappe File doc.
@@ -46,6 +46,7 @@ def confirm_upload(s3_key, filename, is_private=0, doctype=None, docname=None, f
     frappe.has_permission("File", "create", throw=True)
 
     is_private = frappe.utils.cint(is_private)
+    file_size = frappe.utils.cint(file_size)
     settings = frappe.get_single("Platine Settings")
 
     if is_private:
@@ -61,10 +62,16 @@ def confirm_upload(s3_key, filename, is_private=0, doctype=None, docname=None, f
         "folder": folder,
         "attached_to_doctype": doctype,
         "attached_to_name": docname,
+        "platine_s3_key": s3_key,
+        "file_size": file_size,
     })
+
+    # Apply ACL on the S3 object — presigned PUT skips ACL in the signature,
+    # so we enforce it server-side after the upload completes.
+    set_object_acl(s3_key, is_private=bool(is_private))
 
     # Disable our after_insert hook for this doc (already on S3)
     file_doc.flags.platine_skip_upload = True
     file_doc.insert()
 
-    return {"name": file_doc.name, "file_url": file_url}
+    return file_doc.as_dict()

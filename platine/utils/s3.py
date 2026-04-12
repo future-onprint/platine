@@ -20,16 +20,6 @@ def get_s3_client():
     )
 
 
-def get_cdn_client():
-    """Client for presigned GET URLs — CDN endpoint (Cloudflare in front of S3)."""
-    s = get_settings()
-    return boto3.client(
-        "s3",
-        aws_access_key_id=s.access_key,
-        aws_secret_access_key=s.get_password("secret_key"),
-        region_name=s.region,
-        endpoint_url=s.cdn_url,
-    )
 
 
 def upload_file(local_path: str, s3_key: str, is_private: bool = True) -> str:
@@ -37,10 +27,16 @@ def upload_file(local_path: str, s3_key: str, is_private: bool = True) -> str:
     Upload a local file to S3.
     Returns the CDN URL if public, the s3_key if private.
     """
+    import mimetypes
+
     client = get_s3_client()
     s = get_settings()
 
-    extra_args = {"ACL": "private" if is_private else "public-read"}
+    content_type, _ = mimetypes.guess_type(local_path)
+    extra_args = {
+        "ACL": "private" if is_private else "public-read",
+        "ContentType": content_type or "application/octet-stream",
+    }
 
     client.upload_file(
         Filename=local_path,
@@ -53,7 +49,7 @@ def upload_file(local_path: str, s3_key: str, is_private: bool = True) -> str:
         return s3_key
 
     cdn_base = (s.cdn_url or s.endpoint_url).rstrip("/")
-    return f"{cdn_base}/{s.bucket_name}/{s3_key}"
+    return f"{cdn_base}/{s3_key}"
 
 
 def delete_file(s3_key: str) -> None:
@@ -69,22 +65,72 @@ def delete_file(s3_key: str) -> None:
         raise
 
 
-def generate_presigned_get(s3_key: str, expiry_seconds: int = None) -> str:
+def copy_object(src_key: str, dst_key: str, is_private: bool) -> None:
+    """Copy an S3 object within the same bucket, preserving ACL."""
+    client = get_s3_client()
+    s = get_settings()
+    client.copy_object(
+        CopySource={"Bucket": s.bucket_name, "Key": src_key},
+        Bucket=s.bucket_name,
+        Key=dst_key,
+        ACL="private" if is_private else "public-read",
+    )
+
+
+def generate_presigned_get(
+    s3_key: str,
+    expiry_seconds: int = None,
+    filename: str = None,
+) -> str:
     """
-    Generate a presigned GET URL via the CDN client.
+    Generate a presigned GET URL pointing directly at the S3 endpoint.
+
+    Presigned URLs for private files must NOT go through a Cloudflare CDN
+    proxy: Cloudflare rewrites or preserves the Host header in ways that
+    prevent SigV4 canonical-host validation from matching, regardless of
+    whether you sign against the CDN domain or the S3 endpoint.
+
+    Routing presigned URLs through a CDN also provides no benefit — the
+    content is unique per request (expiring signature) and must not be cached.
+
+    filename: when provided, adds ResponseContentDisposition=attachment so the
+              browser downloads the file instead of opening it inline.
+
     expiry_seconds defaults to Platine Settings.presigned_url_expiry * 60.
     """
-    client = get_cdn_client()
+    client = get_s3_client()
     s = get_settings()
 
     if expiry_seconds is None:
         expiry_seconds = (s.presigned_url_expiry or 60) * 60
 
+    import mimetypes
+
+    params = {"Bucket": s.bucket_name, "Key": s3_key}
+
+    # Override Content-Type from the key extension — S3 objects uploaded without
+    # an explicit ContentType are stored as application/octet-stream, which prevents
+    # browsers from rendering PDFs and images inline.
+    content_type, _ = mimetypes.guess_type(s3_key)
+    if content_type:
+        params["ResponseContentType"] = content_type
+
+    if filename:
+        params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
+
     return client.generate_presigned_url(
         "get_object",
-        Params={"Bucket": s.bucket_name, "Key": s3_key},
+        Params=params,
         ExpiresIn=expiry_seconds,
     )
+
+
+def set_object_acl(s3_key: str, is_private: bool = True) -> None:
+    """Set the ACL on an existing S3 object (called after presigned PUT)."""
+    client = get_s3_client()
+    s = get_settings()
+    acl = "private" if is_private else "public-read"
+    client.put_object_acl(Bucket=s.bucket_name, Key=s3_key, ACL=acl)
 
 
 def generate_presigned_put(s3_key: str, content_type: str, is_private: bool = True) -> str:
@@ -102,7 +148,6 @@ def generate_presigned_put(s3_key: str, content_type: str, is_private: bool = Tr
             "Bucket": s.bucket_name,
             "Key": s3_key,
             "ContentType": content_type,
-            "ACL": "private" if is_private else "public-read",
         },
         ExpiresIn=expiry_seconds,
     )
@@ -129,18 +174,38 @@ def download_file(s3_key: str, local_path: str) -> None:
     client.download_file(Bucket=s.bucket_name, Key=s3_key, Filename=local_path)
 
 
+def build_s3_key(filename: str, is_private: bool) -> str:
+    """
+    Build an S3 key, prepending the optional folder_prefix from settings.
+    prefix='prod', private=True  → prod/private/filename
+    prefix='',     private=False → public/filename
+    """
+    s = get_settings()
+    prefix = (s.folder_prefix or "").strip("/")
+    base = f"{'private' if is_private else 'public'}/{filename}"
+    return f"{prefix}/{base}" if prefix else base
+
+
 def get_s3_key_from_file_url(file_url: str) -> str:
     """
-    Extract the s3_key from a Frappe file_url.
-    /private/files/doc.pdf  -> private/doc.pdf
-    /files/image.jpg        -> public/image.jpg
+    Derive the S3 key from a Frappe file_url (local path or CDN URL).
+    /private/files/doc.pdf              -> {prefix}/private/doc.pdf
+    /files/image.jpg                    -> {prefix}/public/image.jpg
+    https://cdn.example.com/bucket/...  -> everything after bucket_name/
     """
     if file_url.startswith("/private/files/"):
         filename = file_url[len("/private/files/"):]
-        return f"private/{filename}"
+        return build_s3_key(filename, is_private=True)
 
     if file_url.startswith("/files/"):
         filename = file_url[len("/files/"):]
-        return f"public/{filename}"
+        return build_s3_key(filename, is_private=False)
 
-    frappe.throw(f"Unrecognized Frappe file URL format: {file_url}")
+    # CDN URL — the key is everything after {cdn_base}/
+    s = get_settings()
+    cdn_base = (s.cdn_url or s.endpoint_url or "").rstrip("/")
+    if cdn_base and file_url.startswith(cdn_base):
+        return file_url[len(cdn_base):].lstrip("/")
+
+    # Unrecognised format (external URL, folder, etc.) — skip silently
+    return None
