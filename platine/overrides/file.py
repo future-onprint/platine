@@ -13,10 +13,9 @@ def is_platine_enabled():
 
 def get_s3_key_for_file(file_doc):
     """Determine the s3_key for a File doc."""
+    from platine.utils.s3 import build_s3_key
     filename = file_doc.file_name or os.path.basename(file_doc.file_url or "")
-    if file_doc.is_private:
-        return f"private/{filename}"
-    return f"public/{filename}"
+    return build_s3_key(filename, is_private=bool(file_doc.is_private))
 
 
 def after_insert(doc, method=None):
@@ -44,7 +43,7 @@ def after_insert(doc, method=None):
     if not doc.file_url:
         return
 
-    from platine.utils.s3 import upload_file
+    from platine.utils.s3 import upload_file, build_s3_key
 
     # Local file path
     site_path = frappe.get_site_path()
@@ -67,7 +66,7 @@ def after_insert(doc, method=None):
                 thumbnail_local_path = _generate_thumbnail(doc, local_path)
                 if thumbnail_local_path:
                     thumb_filename = os.path.basename(thumbnail_local_path)
-                    thumbnail_s3_key = f"{'private' if doc.is_private else 'public'}/{thumb_filename}"
+                    thumbnail_s3_key = build_s3_key(thumb_filename, is_private=bool(doc.is_private))
 
             # Upload original file
             cdn_url = upload_file(local_path, s3_key, is_private=doc.is_private)
@@ -79,6 +78,10 @@ def after_insert(doc, method=None):
 
             # Remove local original file
             os.remove(local_path)
+
+            # Persist S3 key on the File doc for reliable future lookups
+            frappe.db.set_value("File", doc.name, "platine_s3_key", s3_key)
+            doc.platine_s3_key = s3_key
 
             # Update file_url for public files (direct CDN URL)
             if not doc.is_private and cdn_url:
@@ -109,21 +112,41 @@ def after_insert(doc, method=None):
 def on_trash(doc, method=None):
     """
     Hook on_trash on File.
-    Delete the corresponding S3 object.
+    Delete the S3 object and its thumbnail (if any).
+    Skips head_object check — delete_file handles NoSuchKey gracefully.
     """
     if not is_platine_enabled():
         return
 
-    from platine.utils.s3 import delete_file, get_s3_key_from_file_url, file_exists_on_s3
+    from platine.utils.s3 import delete_file, get_s3_key_from_file_url, build_s3_key
 
+    file_name = doc.file_name or ""
+
+    # ── Main object ──────────────────────────────────────────────────────────
     try:
-        s3_key = get_s3_key_from_file_url(doc.file_url)
-        if s3_key and file_exists_on_s3(s3_key):
-            delete_file(s3_key)
-            log_event(event_type="Delete", status="Success", file_name=doc.file_name or "", s3_key=s3_key, is_private=bool(doc.is_private))
+        # Prefer stored key; fall back to URL parsing for legacy docs
+        s3_key = doc.get("platine_s3_key") or get_s3_key_from_file_url(doc.file_url)
+        if not s3_key:
+            log_event(event_type="Delete", status="Error", file_name=file_name,
+                      s3_key="", is_private=bool(doc.is_private),
+                      message=f"Could not resolve S3 key from file_url: {doc.file_url}")
+            return
+        delete_file(s3_key)
+        log_event(event_type="Delete", status="Success", file_name=file_name,
+                  s3_key=s3_key, is_private=bool(doc.is_private))
     except Exception as e:
         frappe.log_error(f"Platine: S3 deletion error for {doc.name}: {e}", "Platine S3 Delete")
-        log_event(event_type="Delete", status="Error", file_name=doc.file_name or "", s3_key="", is_private=bool(doc.is_private), message=str(e))
+        log_event(event_type="Delete", status="Error", file_name=file_name,
+                  s3_key="", is_private=bool(doc.is_private), message=str(e))
+        return
+
+    # ── Thumbnail (uploaded by after_insert, no separate File doc) ───────────
+    if file_name and _is_image(file_name):
+        try:
+            thumb_key = build_s3_key(f"thumb_{file_name}", is_private=bool(doc.is_private))
+            delete_file(thumb_key)
+        except Exception as e:
+            frappe.log_error(f"Platine: thumbnail deletion error for {doc.name}: {e}", "Platine S3 Delete")
 
 
 def download_file(file_url=None):
@@ -142,7 +165,8 @@ def download_file(file_url=None):
         if s3_key and file_exists_on_s3(s3_key):
             settings = frappe.get_single("Platine Settings")
             expiry = (settings.presigned_url_expiry or 60) * 60
-            presigned_url = generate_presigned_get(s3_key, expiry_seconds=expiry)
+            filename = os.path.basename(file_url or "")
+            presigned_url = generate_presigned_get(s3_key, expiry_seconds=expiry, filename=filename)
             frappe.local.response["type"] = "redirect"
             frappe.local.response["location"] = presigned_url
             if frappe.db.get_single_value("Platine Settings", "log_downloads_enabled"):

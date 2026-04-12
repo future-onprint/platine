@@ -48,9 +48,6 @@ app_include_js = "/assets/platine/js/upload_override.js"
 doctype_js = {
 	"File": "public/js/file_share.js"
 }
-doctype_list_js = {
-	"Platine Log": "public/js/platine_log_list.js"
-}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -147,6 +144,24 @@ before_uninstall = "platine.uninstall.before_uninstall"
 # 	}
 # }
 
+override_doctype_class = {
+	"File": "platine.overrides.file_doc.PlatineFile"
+}
+
+custom_fields = {
+	"File": [
+		{
+			"fieldname": "platine_s3_key",
+			"label": "Platine S3 Key",
+			"fieldtype": "Data",
+			"read_only": 1,
+			"hidden": 1,
+			"no_copy": 1,
+			"description": "S3 object key managed by Platine. Do not edit manually.",
+		}
+	]
+}
+
 doc_events = {
 	"File": {
 		"after_insert": "platine.overrides.file.after_insert",
@@ -205,7 +220,7 @@ override_whitelisted_methods = {
 
 # Request Events
 # ----------------
-# before_request = ["platine.utils.before_request"]
+before_request = ["platine.overrides.request.intercept_private_file_request"]
 # after_request = ["platine.utils.after_request"]
 
 # Job Events

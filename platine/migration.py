@@ -1,7 +1,7 @@
 import os
 
 import frappe
-from platine.utils.s3 import upload_file
+from platine.utils.s3 import upload_file, build_s3_key
 from platine.utils.logger import log_event, Timer
 
 
@@ -62,10 +62,10 @@ def _migrate_single_file(file_data):
 
     if is_private:
         local_path = os.path.join(site_path, "private", "files", filename)
-        s3_key = f"private/{filename}"
     else:
         local_path = os.path.join(site_path, "public", "files", filename)
-        s3_key = f"public/{filename}"
+
+    s3_key = build_s3_key(filename, is_private=bool(is_private))
 
     if not os.path.exists(local_path):
         return
@@ -73,8 +73,10 @@ def _migrate_single_file(file_data):
     cdn_url = upload_file(local_path, s3_key, is_private=is_private)
     os.remove(local_path)
 
+    update = {"platine_s3_key": s3_key}
     if not is_private and cdn_url:
-        frappe.db.set_value("File", file_data["name"], "file_url", cdn_url)
+        update["file_url"] = cdn_url
+    frappe.db.set_value("File", file_data["name"], update)
 
 
 def _update_status(status):
