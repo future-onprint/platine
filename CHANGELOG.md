@@ -7,6 +7,20 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.1.0] — 2026-04-12
+
+### Added
+
+- **Unique S3 keys** — a random 8-character hex suffix is appended before the file extension on every upload (`photo.jpg` → `photo-a3f9bc12.jpg`), preventing collisions when two files share the same name.
+
+### Fixed
+
+- **`platine_s3_key` column missing during migration** — moved the custom field definition from `hooks.py` (`custom_fields`) to a Frappe fixture (`fixtures/custom_field.json`). The fixture is applied during `bench migrate` before any app code runs, so the column is guaranteed to exist when `migrate_files()` writes to it.
+- **Privacy change with random-suffix keys** — `_handle_s3_privacy_change` now derives the new S3 key by flipping the `public`/`private` segment in the stored key instead of reconstructing it from the filename (reconstruction is impossible once a random suffix is in play).
+- **`validate_file_on_disk` with random-suffix keys** — reads `platine_s3_key` directly from the File doc instead of reconstructing the key.
+
+---
+
 ## [1.0.0] — 2026-04-12
 
 First production release.
