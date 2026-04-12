@@ -148,19 +148,12 @@ override_doctype_class = {
 	"File": "platine.overrides.file_doc.PlatineFile"
 }
 
-custom_fields = {
-	"File": [
-		{
-			"fieldname": "platine_s3_key",
-			"label": "S3 Object Key",
-			"fieldtype": "Data",
-			"read_only": 1,
-			"hidden": 0,
-			"no_copy": 1,
-			"description": "S3 object key written by Platine on every upload, migration, or privacy change. Used for reliable deletion without URL parsing. Do not edit manually.",
-		}
-	]
-}
+fixtures = [
+	{
+		"doctype": "Custom Field",
+		"filters": [["name", "=", "File-platine_s3_key"]],
+	}
+]
 
 doc_events = {
 	"File": {
