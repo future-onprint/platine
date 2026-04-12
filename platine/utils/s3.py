@@ -176,13 +176,24 @@ def download_file(s3_key: str, local_path: str) -> None:
 
 def build_s3_key(filename: str, is_private: bool) -> str:
     """
-    Build an S3 key, prepending the optional folder_prefix from settings.
-    prefix='prod', private=True  → prod/private/filename
-    prefix='',     private=False → public/filename
+    Build a unique S3 key for a new upload.
+
+    A random 8-character hex suffix is injected before the extension to
+    prevent collisions when two files share the same name.
+
+    prefix='prod', private=True  → prod/private/photo-a3f9bc12.jpg
+    prefix='',     private=False → public/photo-a3f9bc12.jpg
     """
+    import secrets
+    import os as _os
+
     s = get_settings()
     prefix = (s.folder_prefix or "").strip("/")
-    base = f"{'private' if is_private else 'public'}/{filename}"
+
+    stem, ext = _os.path.splitext(filename)
+    unique_filename = f"{stem}-{secrets.token_hex(4)}{ext}"
+
+    base = f"{'private' if is_private else 'public'}/{unique_filename}"
     return f"{prefix}/{base}" if prefix else base
 
 

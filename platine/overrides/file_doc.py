@@ -48,11 +48,10 @@ class PlatineFile(File):
             enabled = False
 
         if enabled:
-            from platine.utils.s3 import build_s3_key, file_exists_on_s3
+            from platine.utils.s3 import file_exists_on_s3
 
-            filename = self.file_name or os.path.basename(self.file_url or "")
-            s3_key = build_s3_key(filename, is_private=bool(self.is_private))
-            if file_exists_on_s3(s3_key):
+            s3_key = self.get("platine_s3_key")
+            if s3_key and file_exists_on_s3(s3_key):
                 return True
 
         frappe.throw(frappe._("File {0} does not exist").format(self.file_url), IOError)
@@ -82,19 +81,25 @@ class PlatineFile(File):
 
     def _handle_s3_privacy_change(self, old_doc):
         from platine.utils.s3 import (
-            build_s3_key,
             copy_object,
             delete_file,
             file_exists_on_s3,
             get_settings,
         )
 
-        old_is_private = bool(old_doc.is_private) if old_doc else (not bool(self.is_private))
         new_is_private = bool(self.is_private)
 
-        filename = self.file_name or os.path.basename(self.file_url or "")
-        old_key = build_s3_key(filename, old_is_private)
-        new_key = build_s3_key(filename, new_is_private)
+        # Always derive old_key from the stored field — never reconstruct it,
+        # since the key contains a random suffix that cannot be recomputed.
+        old_key = (old_doc and old_doc.get("platine_s3_key")) or self.get("platine_s3_key")
+        if not old_key:
+            return
+
+        # Derive new_key by flipping the public/private segment in the existing key.
+        if new_is_private:
+            new_key = old_key.replace("/public/", "/private/", 1)
+        else:
+            new_key = old_key.replace("/private/", "/public/", 1)
 
         if old_key == new_key:
             return
@@ -107,6 +112,7 @@ class PlatineFile(File):
 
         self.platine_s3_key = new_key
 
+        filename = self.file_name or os.path.basename(self.file_url or "")
         if new_is_private:
             self.file_url = f"/private/files/{filename}"
         else:
