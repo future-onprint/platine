@@ -1,13 +1,14 @@
 // Copyright (c) 2026, Underscore Blank OÜ and contributors
 // For license information, please see license.txt
 
-// Cloudflare note: if Cloudflare is enabled in proxy mode, create a Cache Rule to
-// bypass the cache for requests whose query string contains X-Amz-Signature.
-// (Cache Rules → Bypass cache if X-Amz-Signature is present in the query string).
+// CDN note: the CDN URL is used only for public files (no signature). Presigned URLs
+// for private files are served directly from the S3 endpoint — routing them through
+// a Cloudflare proxy breaks SigV4 host validation and provides no caching benefit.
 
 frappe.ui.form.on("Platine Settings", {
 	onload(frm) {
 		frm._enabled_on_load = frm.doc.enabled;
+		frm._folder_prefix_on_load = frm.doc.folder_prefix || "";
 
 		if (!frm.doc.cors_config) {
 			frappe.confirm(
@@ -83,6 +84,45 @@ frappe.ui.form.on("Platine Settings", {
 		} else {
 			frm._enabled_on_load = frm.doc.enabled;
 		}
+	},
+
+	folder_prefix(frm) {
+		const new_val = frm.doc.folder_prefix || "";
+		const old_val = frm._folder_prefix_on_load;
+		if (new_val === old_val) return;
+
+		const d = new frappe.ui.Dialog({
+			title: __("Change Folder Prefix"),
+			indicator: "orange",
+			fields: [
+				{
+					fieldtype: "HTML",
+					options: `
+						<div style="padding:4px 0 12px">
+							<p>${__("Changing the folder prefix will trigger a background job that:")}</p>
+							<ul>
+								<li>${__("Copies every S3 file from <strong>{0}</strong> to <strong>{1}</strong>", [old_val || "(root)", new_val || "(root)"])}</li>
+								<li>${__("Deletes the originals from S3")}</li>
+								<li>${__("Updates all public file URLs in the database")}</li>
+							</ul>
+							<p>${__("The job starts automatically when you save. It cannot be undone.")}</p>
+						</div>
+					`,
+				},
+			],
+			primary_action_label: __("Proceed"),
+			primary_action() {
+				d.hide();
+				frm._folder_prefix_on_load = new_val;
+				frm.save();
+			},
+			secondary_action_label: __("Revert"),
+			secondary_action() {
+				d.hide();
+				frm.set_value("folder_prefix", old_val);
+			},
+		});
+		d.show();
 	},
 
 	refresh(frm) {
@@ -236,6 +276,30 @@ frappe.ui.form.on("Platine Settings", {
 			__("Storage")
 		);
 
+		frm.add_custom_button(
+			__("Relink Files"),
+			() => {
+				frappe.confirm(
+					__("Re-compute file URLs for all public S3 files using the current CDN URL and folder prefix?"),
+					() => {
+						frappe.call({
+							method: "platine.api.relink.relink_files",
+							freeze: true,
+							freeze_message: __("Relinking files..."),
+							callback(r) {
+								frappe.msgprint({
+									title: __("Relink Files"),
+									indicator: r.message?.success ? "green" : "orange",
+									message: r.message?.message || __("No response"),
+								});
+							},
+						});
+					}
+				);
+			},
+			__("Storage")
+		);
+
 		// ── Logs buttons ──────────────────────────────────────────────────
 		frm.add_custom_button(
 			__("View Logs"),
@@ -286,6 +350,15 @@ frappe.ui.form.on("Platine Settings", {
 		) {
 			_start_rollback_polling(frm);
 		}
+
+		const reprefix_status = frm.doc.reprefix_status || "";
+		if (
+			reprefix_status &&
+			!reprefix_status.startsWith("Reprefix completed") &&
+			reprefix_status !== "Not started"
+		) {
+			_start_reprefix_polling(frm);
+		}
 	},
 });
 
@@ -327,6 +400,29 @@ function _start_rollback_polling(frm) {
 					frm._rollback_poll_id = null;
 					frm.reload_doc();
 					frappe.show_alert({ message: __("Rollback complete."), indicator: "green" });
+				}
+			},
+		});
+	}, 3000);
+}
+
+function _start_reprefix_polling(frm) {
+	if (frm._reprefix_poll_id) clearInterval(frm._reprefix_poll_id);
+
+	frm._reprefix_poll_id = setInterval(() => {
+		frappe.call({
+			method: "frappe.client.get_single_value",
+			args: { doctype: "Platine Settings", field: "reprefix_status" },
+			callback(r) {
+				const status = r.message || "";
+				frm.set_value("reprefix_status", status);
+				frm.refresh_field("reprefix_status");
+
+				if (status.startsWith("Reprefix completed")) {
+					clearInterval(frm._reprefix_poll_id);
+					frm._reprefix_poll_id = null;
+					frm.reload_doc();
+					frappe.show_alert({ message: __("Folder prefix update complete."), indicator: "green" });
 				}
 			},
 		});

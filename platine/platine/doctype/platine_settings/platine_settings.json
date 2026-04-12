@@ -18,6 +18,7 @@
   "region",
   "col_break_storage",
   "bucket_name",
+  "folder_prefix",
   "transfer_tab",
   "upload_section",
   "presigned_upload_enabled",
@@ -34,6 +35,12 @@
   "rollback_section",
   "rollback_info",
   "rollback_status",
+  "reprefix_section",
+  "reprefix_status",
+  "advanced_tab",
+  "streaming_section",
+  "streaming_info",
+  "stream_mime_types",
   "logs_tab",
   "log_settings_section",
   "log_retention_days",
@@ -91,7 +98,7 @@
    "fieldtype": "Column Break"
   },
   {
-   "description": "CDN hostname used for presigned URLs (e.g. https://cdn.example.com). See the CORS tab for Cloudflare configuration notes.",
+   "description": "CDN hostname used for public file URLs (e.g. https://cdn.example.com). Private file downloads use the S3 endpoint directly — presigned URLs cannot be proxied through Cloudflare.",
    "fieldname": "cdn_url",
    "fieldtype": "Data",
    "label": "CDN URL"
@@ -115,6 +122,12 @@
    "fieldname": "bucket_name",
    "fieldtype": "Data",
    "label": "Bucket Name"
+  },
+  {
+   "description": "Optional prefix added to every S3 key, e.g. <code>production</code> → files stored as <code>production/public/…</code>. Changing this after uploading files will break existing links.",
+   "fieldname": "folder_prefix",
+   "fieldtype": "Data",
+   "label": "Folder Prefix"
   },
   {
    "fieldname": "transfer_tab",
@@ -202,6 +215,38 @@
    "fieldname": "migrate_section",
    "fieldtype": "Section Break",
    "label": "Migrate"
+  },
+  {
+   "fieldname": "reprefix_section",
+   "fieldtype": "Section Break",
+   "label": "Folder Prefix Change"
+  },
+  {
+   "fieldname": "reprefix_status",
+   "fieldtype": "Data",
+   "label": "Reprefix Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "advanced_tab",
+   "fieldtype": "Tab Break",
+   "label": "Advanced"
+  },
+  {
+   "fieldname": "streaming_section",
+   "fieldtype": "Section Break",
+   "label": "Private File Streaming"
+  },
+  {
+   "fieldname": "streaming_info",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-warning\" style=\"font-size:13px;padding:10px 14px;border-radius:6px;margin-bottom:12px\">\n  <strong>Safari compatibility</strong> — Safari's PDF viewer does not follow HTTP redirects inside embedded contexts (<code>iframe</code>, <code>embed</code>, <code>object</code>). When a private file is opened from within Frappe, Safari may display a blank preview instead of the file content.<br><br>\n  To fix this, add the relevant MIME types below. When a request for a private file comes from Frappe itself (identified by the <code>Referer</code> header) <strong>and</strong> its type is listed here, Platine will stream the file content through the Frappe server instead of redirecting to S3 — no redirect, no Safari issue.<br><br>\n  <strong>This only affects private files.</strong> Public files are always served directly from the CDN URL and are not impacted.<br><br>\n  <a href=\"https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/MIME_types/Common_types\" target=\"_blank\" rel=\"noopener noreferrer\">Browse common MIME types on MDN &rarr;</a>\n</div>"
+  },
+  {
+   "description": "One MIME type per line (e.g. application/pdf). Only applies to private files accessed from within Frappe.",
+   "fieldname": "stream_mime_types",
+   "fieldtype": "Small Text",
+   "label": "MIME Types to Stream"
   },
   {
    "fieldname": "logs_tab",

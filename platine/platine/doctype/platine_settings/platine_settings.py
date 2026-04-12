@@ -1,6 +1,9 @@
+import re
 import frappe
 import json
 from frappe.model.document import Document
+
+_MIME_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_]*/[a-zA-Z0-9][a-zA-Z0-9!#$&\-^_.+]*$")
 
 
 DEFAULT_CORS_CONFIG = {
@@ -27,8 +30,38 @@ class PlatineSettings(Document):
 					)
 				)
 
+		if self.stream_mime_types:
+			invalid = [
+				line.strip()
+				for line in self.stream_mime_types.splitlines()
+				if line.strip() and not _MIME_RE.match(line.strip())
+			]
+			if invalid:
+				frappe.throw(
+					frappe._("Invalid MIME type(s) in {0}: {1}").format(
+						frappe.bold(self.meta.get_label("stream_mime_types")),
+						", ".join(frappe.bold(v) for v in invalid),
+					)
+				)
+
+	def before_save(self):
+		self._old_folder_prefix = (
+			frappe.db.get_single_value("Platine Settings", "folder_prefix") or ""
+		)
+
 	def on_update(self):
-		pass
+		old_prefix = getattr(self, "_old_folder_prefix", None)
+		new_prefix = self.folder_prefix or ""
+		if old_prefix is not None and old_prefix != new_prefix:
+			frappe.enqueue(
+				"platine.reprefix.reprefix_files",
+				queue="long",
+				timeout=7200,
+				job_id="platine_reprefix",
+				deduplicate=True,
+				old_prefix=old_prefix,
+				new_prefix=new_prefix,
+			)
 
 
 @frappe.whitelist()
