@@ -152,12 +152,12 @@ custom_fields = {
 	"File": [
 		{
 			"fieldname": "platine_s3_key",
-			"label": "Platine S3 Key",
+			"label": "S3 Object Key",
 			"fieldtype": "Data",
 			"read_only": 1,
-			"hidden": 1,
+			"hidden": 0,
 			"no_copy": 1,
-			"description": "S3 object key managed by Platine. Do not edit manually.",
+			"description": "S3 object key written by Platine on every upload, migration, or privacy change. Used for reliable deletion without URL parsing. Do not edit manually.",
 		}
 	]
 }
