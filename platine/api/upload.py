@@ -1,6 +1,7 @@
 import frappe
 import os
 from platine.utils.s3 import generate_presigned_put, build_s3_key, set_object_acl
+from platine.utils.logger import log_event
 
 
 @frappe.whitelist()
@@ -73,5 +74,14 @@ def confirm_upload(s3_key, filename, is_private=0, file_size=0, doctype=None, do
     # Disable our after_insert hook for this doc (already on S3)
     file_doc.flags.platine_skip_upload = True
     file_doc.insert()
+
+    log_event(
+        event_type="Upload",
+        status="Success",
+        message="Presigned upload confirmed",
+        file_name=os.path.basename(filename),
+        s3_key=s3_key,
+        is_private=bool(is_private),
+    )
 
     return file_doc.as_dict()
