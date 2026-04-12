@@ -9,7 +9,6 @@
   "insert_after": "content_hash",
   "read_only": 1,
   "hidden": 0,
-  "in_list_view": 0,
   "no_copy": 1,
   "description": "S3 object key written by Platine on every upload, migration, or privacy change. Used for reliable deletion without URL parsing. Do not edit manually."
  }
