@@ -1,7 +1,7 @@
 import os
 
 import frappe
-from platine.utils.s3 import download_file, file_exists_on_s3
+from platine.utils.s3 import download_file, file_exists_on_s3, build_s3_key
 from platine.utils.logger import log_event, Timer
 
 
@@ -81,12 +81,11 @@ def _rollback_single_file(file_data: dict, cdn_base: str, bucket_name: str, site
 
     # Derive the S3 key
     if file_url.startswith(cdn_base):
-        # Public file: strip cdn_base/bucket_name/ prefix → public/{filename}
-        prefix = f"{cdn_base}/{bucket_name}/" if bucket_name else f"{cdn_base}/"
-        s3_key = file_url[len(prefix):] if file_url.startswith(prefix) else f"public/{filename}"
+        # Public file: strip cdn_base/ prefix → s3_key
+        s3_key = file_url[len(cdn_base):].lstrip("/")
     else:
-        # Private file: /private/files/{filename} → private/{filename}
-        s3_key = f"private/{filename}"
+        # Private file: derive key with folder prefix
+        s3_key = build_s3_key(filename, is_private=True)
 
     if not file_exists_on_s3(s3_key):
         return  # Nothing on S3 to restore, skip
