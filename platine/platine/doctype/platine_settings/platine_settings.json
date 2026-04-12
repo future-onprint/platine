@@ -1,0 +1,269 @@
+{
+ "actions": [],
+ "creation": "2026-04-12 12:00:00",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "connection_tab",
+  "enabled",
+  "credentials_section",
+  "access_key",
+  "col_break_credentials",
+  "secret_key",
+  "endpoints_section",
+  "endpoint_url",
+  "col_break_endpoints",
+  "cdn_url",
+  "storage_section",
+  "region",
+  "col_break_storage",
+  "bucket_name",
+  "transfer_tab",
+  "upload_section",
+  "presigned_upload_enabled",
+  "presigned_url_expiry",
+  "download_section",
+  "download_info",
+  "cors_tab",
+  "cors_info",
+  "cors_config",
+  "migration_tab",
+  "migrate_section",
+  "migration_info",
+  "migration_status",
+  "rollback_section",
+  "rollback_info",
+  "rollback_status",
+  "logs_tab",
+  "log_settings_section",
+  "log_retention_days",
+  "col_break_log_settings",
+  "log_downloads_enabled",
+  "logs_actions_section",
+  "logs_info"
+ ],
+ "fields": [
+  {
+   "fieldname": "connection_tab",
+   "fieldtype": "Tab Break",
+   "label": "Connection"
+  },
+  {
+   "bold": 1,
+   "default": "0",
+   "description": "When disabled, all file URLs pointing to S3 or CDN will no longer resolve. Use the <strong>Rollback</strong> feature (Migration tab) to restore files locally before disabling.",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enable S3 Integration"
+  },
+  {
+   "fieldname": "credentials_section",
+   "fieldtype": "Section Break",
+   "label": "Credentials"
+  },
+  {
+   "fieldname": "access_key",
+   "fieldtype": "Data",
+   "label": "Access Key"
+  },
+  {
+   "fieldname": "col_break_credentials",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "secret_key",
+   "fieldtype": "Password",
+   "label": "Secret Key"
+  },
+  {
+   "fieldname": "endpoints_section",
+   "fieldtype": "Section Break",
+   "label": "Endpoints"
+  },
+  {
+   "description": "S3-compatible API endpoint (e.g. https://s3.fr-par.scw.cloud)",
+   "fieldname": "endpoint_url",
+   "fieldtype": "Data",
+   "label": "Endpoint URL"
+  },
+  {
+   "fieldname": "col_break_endpoints",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "CDN hostname used for presigned URLs (e.g. https://cdn.example.com). See the CORS tab for Cloudflare configuration notes.",
+   "fieldname": "cdn_url",
+   "fieldtype": "Data",
+   "label": "CDN URL"
+  },
+  {
+   "fieldname": "storage_section",
+   "fieldtype": "Section Break",
+   "label": "Storage"
+  },
+  {
+   "description": "e.g. fr-par, us-east-1",
+   "fieldname": "region",
+   "fieldtype": "Data",
+   "label": "Region"
+  },
+  {
+   "fieldname": "col_break_storage",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "bucket_name",
+   "fieldtype": "Data",
+   "label": "Bucket Name"
+  },
+  {
+   "fieldname": "transfer_tab",
+   "fieldtype": "Tab Break",
+   "label": "Transfer"
+  },
+  {
+   "fieldname": "upload_section",
+   "fieldtype": "Section Break",
+   "label": "Upload"
+  },
+  {
+   "default": "0",
+   "description": "When enabled, the browser uploads files directly to S3 via a presigned PUT URL \u2014 the Frappe server handles only signing, never file content.",
+   "fieldname": "presigned_upload_enabled",
+   "fieldtype": "Check",
+   "label": "Enable Presigned Upload"
+  },
+  {
+   "default": "60",
+   "description": "Default expiry for download presigned URLs. Also used as the minimum expiry for share links.",
+   "fieldname": "presigned_url_expiry",
+   "fieldtype": "Int",
+   "label": "Presigned URL Expiry (minutes)"
+  },
+  {
+   "fieldname": "download_section",
+   "fieldtype": "Section Break",
+   "label": "Download"
+  },
+  {
+   "fieldname": "download_info",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-info\" style=\"font-size:13px;padding:10px 14px;border-radius:6px\">\n  <strong>How downloads work</strong><br>\n  All file downloads \u2014 public and private \u2014 go through Frappe for permission checks, then redirect the client directly to S3 via a short-lived presigned URL. File content never transits through the Frappe server.\n</div>"
+  },
+  {
+   "fieldname": "cors_tab",
+   "fieldtype": "Tab Break",
+   "label": "CORS"
+  },
+  {
+   "fieldname": "cors_info",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-warning\" style=\"font-size:13px;padding:10px 14px;border-radius:6px;margin-bottom:12px\">\n  <strong>Cloudflare users</strong> \u2014 if your CDN URL is proxied through Cloudflare, create a <strong>Cache Rule</strong> to bypass the cache for requests whose query string contains <code>X-Amz-Signature</code>. Without this, Cloudflare may serve a cached response with an expired signature to a different client.\n</div>"
+  },
+  {
+   "fieldname": "cors_config",
+   "fieldtype": "Code",
+   "label": "CORS Configuration",
+   "options": "JSON"
+  },
+  {
+   "fieldname": "migration_tab",
+   "fieldtype": "Tab Break",
+   "label": "Migration"
+  },
+  {
+   "fieldname": "migration_info",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-info\" style=\"font-size:13px;padding:10px 14px;border-radius:6px;margin-bottom:12px\">\n  <strong>Migrate existing files</strong><br>\n  Scans all <code>File</code> documents still pointing to local paths (<code>/files/</code> or <code>/private/files/</code>) and uploads them to S3. The job runs in the background \u2014 progress updates every 10 files. Errors are logged per file without interrupting the job.\n</div>"
+  },
+  {
+   "fieldname": "migration_status",
+   "fieldtype": "Data",
+   "label": "Migration Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "rollback_section",
+   "fieldtype": "Section Break",
+   "label": "Rollback"
+  },
+  {
+   "fieldname": "rollback_info",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-warning\" style=\"font-size:13px;padding:10px 14px;border-radius:6px;margin-bottom:12px\">\n  <strong>Restore files locally</strong><br>\n  Downloads all files currently on S3 back to your Frappe server and restores their original local paths. Run this before disabling the integration or uninstalling the app to avoid broken links.\n</div>"
+  },
+  {
+   "fieldname": "rollback_status",
+   "fieldtype": "Data",
+   "label": "Rollback Status",
+   "read_only": 1
+  },
+  {
+   "fieldname": "migrate_section",
+   "fieldtype": "Section Break",
+   "label": "Migrate"
+  },
+  {
+   "fieldname": "logs_tab",
+   "fieldtype": "Tab Break",
+   "label": "Logs"
+  },
+  {
+   "fieldname": "log_settings_section",
+   "fieldtype": "Section Break",
+   "label": "Settings"
+  },
+  {
+   "default": "30",
+   "fieldname": "log_retention_days",
+   "fieldtype": "Int",
+   "label": "Log Retention (days)",
+   "description": "Logs older than this number of days are automatically deleted by a daily job."
+  },
+  {
+   "fieldname": "col_break_log_settings",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "0",
+   "fieldname": "log_downloads_enabled",
+   "fieldtype": "Check",
+   "label": "Log Downloads",
+   "description": "Log every presigned URL generation for file downloads. High volume \u2014 disabled by default."
+  },
+  {
+   "fieldname": "logs_actions_section",
+   "fieldtype": "Section Break",
+   "label": "Actions"
+  },
+  {
+   "fieldname": "logs_info",
+   "fieldtype": "HTML",
+   "options": "<div class=\"alert alert-info\" style=\"font-size:13px;padding:10px 14px;border-radius:6px\">\n  <strong>Transfer logs</strong><br>\n  All upload, delete, migration, rollback, CORS and connection events are recorded in <strong>Platine Log</strong>. Use the buttons below to view or clear them. CSV export is available natively in the list view.\n</div>"
+  }
+ ],
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-04-12 14:05:31.795543",
+ "modified_by": "kylian.mallet@sklav.group",
+ "module": "Platine",
+ "name": "Platine Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}
