@@ -215,10 +215,10 @@
   },
   {
    "default": "30",
+   "description": "Logs older than this number of days are automatically deleted by a daily job.",
    "fieldname": "log_retention_days",
    "fieldtype": "Int",
-   "label": "Log Retention (days)",
-   "description": "Logs older than this number of days are automatically deleted by a daily job."
+   "label": "Log Retention (days)"
   },
   {
    "fieldname": "col_break_log_settings",
@@ -226,10 +226,10 @@
   },
   {
    "default": "0",
+   "description": "Log every presigned URL generation for file downloads. High volume \u2014 disabled by default.",
    "fieldname": "log_downloads_enabled",
    "fieldtype": "Check",
-   "label": "Log Downloads",
-   "description": "Log every presigned URL generation for file downloads. High volume \u2014 disabled by default."
+   "label": "Log Downloads"
   },
   {
    "fieldname": "logs_actions_section",
@@ -244,7 +244,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-04-12 14:05:31.795543",
+ "modified": "2026-04-12 15:19:20.309387",
  "modified_by": "kylian.mallet@sklav.group",
  "module": "Platine",
  "name": "Platine Settings",
