@@ -19,10 +19,8 @@ def generate_share_link(file_name, expiry_seconds=None):
 	s3_key = get_s3_key_from_file_url(doc.file_url)
 
 	if not doc.is_private:
-		settings = frappe.get_single("Platine Settings")
-		cdn_base = (settings.cdn_url or settings.endpoint_url).rstrip("/")
 		return {
-			"url": f"{cdn_base}/{settings.bucket_name}/{s3_key}",
+			"url": doc.file_url,
 			"expires": None,
 			"is_private": False,
 		}

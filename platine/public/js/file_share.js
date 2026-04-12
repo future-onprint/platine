@@ -1,7 +1,7 @@
 frappe.ui.form.on("File", {
 	refresh(frm) {
 		frm.add_custom_button(
-			__("Generate share link"),
+			__("Share"),
 			() => {
 				if (!frm.doc.is_private) {
 					frappe.call({
@@ -16,8 +16,7 @@ frappe.ui.form.on("File", {
 				} else {
 					_show_expiry_dialog(frm);
 				}
-			},
-			__("Platine")
+			}
 		);
 	},
 });
@@ -88,10 +87,6 @@ function _show_share_dialog(url, expiry_label) {
 		primary_action_label: __("Copy"),
 		primary_action() {
 			frappe.utils.copy_to_clipboard(url);
-			frappe.show_alert({
-				message: __("Link copied!"),
-				indicator: "green",
-			});
 			d.hide();
 		},
 	});
