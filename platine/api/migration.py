@@ -9,7 +9,7 @@ def start_migration():
         "platine.migration.migrate_files",
         queue="long",
         timeout=3600,
-        job_name="platine_s3_migration",
+        job_id="platine_s3_migration",
         deduplicate=True,
     )
     return {"success": True, "message": "Migration started in the background"}

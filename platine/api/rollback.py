@@ -9,7 +9,7 @@ def start_rollback():
         "platine.rollback.rollback_files",
         queue="long",
         timeout=3600,
-        job_name="platine_s3_rollback",
+        job_id="platine_s3_rollback",
         deduplicate=True,
     )
     return {"success": True, "message": "Rollback started in the background"}
