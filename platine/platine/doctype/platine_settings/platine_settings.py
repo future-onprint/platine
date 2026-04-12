@@ -22,7 +22,7 @@ DEFAULT_CORS_CONFIG = {
 class PlatineSettings(Document):
 	def validate(self):
 		if self.enabled:
-			required = ("access_key", "secret_key", "endpoint_url", "bucket_name", "region", "cdn_url")
+			required = ("access_key", "secret_key", "endpoint_url", "bucket_name", "region")
 			missing = [
 				frappe.bold(self.meta.get_label(f))
 				for f in required

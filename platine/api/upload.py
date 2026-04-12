@@ -22,11 +22,6 @@ def get_presigned_upload_url(filename, is_private=0, content_type="application/o
 
     settings = frappe.get_single("Platine Settings")
 
-    if not is_private:
-        cdn_url = (settings.cdn_url or "").rstrip("/")
-        if not cdn_url:
-            frappe.throw(frappe._("CDN URL must be configured in Platine Settings for public file uploads."))
-
     s3_key = build_s3_key(filename, is_private=bool(is_private))
 
     expiry_seconds = (settings.presigned_url_expiry or 60) * 60
@@ -51,7 +46,8 @@ def get_presigned_upload_url(filename, is_private=0, content_type="application/o
     }
 
     if not is_private:
-        result["cdn_url"] = f"{cdn_url}/{s3_key}"
+        public_base = (settings.cdn_url or settings.endpoint_url or "").rstrip("/")
+        result["cdn_url"] = f"{public_base}/{s3_key}"
 
     return result
 
@@ -74,14 +70,11 @@ def confirm_upload(s3_key, filename, is_private=0, file_size=0, doctype=None, do
     file_size = frappe.utils.cint(file_size)
     settings = frappe.get_single("Platine Settings")
 
-    cdn_url = (settings.cdn_url or "").rstrip("/")
-
     if is_private:
         file_url = f"/private/files/{os.path.basename(filename)}"
     else:
-        if not cdn_url:
-            frappe.throw(frappe._("CDN URL must be configured in Platine Settings for public file uploads."))
-        file_url = f"{cdn_url}/{s3_key}"
+        public_base = (settings.cdn_url or settings.endpoint_url or "").rstrip("/")
+        file_url = f"{public_base}/{s3_key}"
 
     file_doc = frappe.get_doc({
         "doctype": "File",
