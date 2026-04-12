@@ -21,6 +21,20 @@ DEFAULT_CORS_CONFIG = {
 
 class PlatineSettings(Document):
 	def validate(self):
+		if self.enabled:
+			required = ("access_key", "secret_key", "endpoint_url", "bucket_name", "region", "cdn_url")
+			missing = [
+				frappe.bold(self.meta.get_label(f))
+				for f in required
+				if not self.get(f)
+			]
+			if missing:
+				frappe.throw(
+					frappe._("The following fields are required to enable the S3 integration: {0}").format(
+						", ".join(missing)
+					)
+				)
+
 		for field in ("endpoint_url", "cdn_url"):
 			value = self.get(field)
 			if value and value.endswith("/"):
