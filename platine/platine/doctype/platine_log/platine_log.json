@@ -1,6 +1,6 @@
 {
  "actions": [],
- "autoname": "PLT-.YY.-.MM.-.DD.-.#####",
+ "autoname": "LOG-.DD.-.MM.-.YYYY.-.HH.-.mm.-.ss.-.##",
  "creation": "2026-04-12 12:00:00",
  "doctype": "DocType",
  "engine": "InnoDB",
