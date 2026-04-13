@@ -7,6 +7,25 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.2.0] — 2026-04-13
+
+### Added
+
+- **Thumbnail for presigned uploads** — `confirm_upload` now downloads the original from S3 to a temp file, generates a 300×300 thumbnail via PIL, uploads it to S3, and stores `platine_s3_thumbnail_key` on the `File` doc. Previously, files uploaded via the direct browser→S3 path had no thumbnail.
+- **`platine_s3_thumbnail_key` custom field** — thumbnail S3 key stored on every `File` document that has a thumbnail, enabling reliable deletion without key reconstruction.
+
+### Fixed
+
+- **Thumbnail never deleted on file trash** — `on_trash` was reconstructing the thumbnail S3 key with `build_s3_key`, which generates a new random suffix each call, so the derived key never matched the real thumbnail. `on_trash` now reads `platine_s3_thumbnail_key` directly.
+- **Legacy S3 key fallback removed from `on_trash`** — the `get_s3_key_from_file_url` fallback was also broken for local-path URLs (same random-suffix issue). `platine_s3_key` is now required; files without it are skipped with a log entry.
+- **Thumbnail deletion decoupled from main object deletion** — if the main S3 object deletion raises an exception, thumbnail deletion is still attempted (the early `return` in the `except` block has been removed).
+
+### Changed
+
+- `on_trash` now emits a `log_event` for thumbnail delete success and error, consistent with main object logging.
+
+---
+
 ## [1.1.0] — 2026-04-12
 
 ### Added

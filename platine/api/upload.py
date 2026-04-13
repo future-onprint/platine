@@ -3,6 +3,58 @@ import os
 from platine.utils.s3 import generate_presigned_put, build_s3_key, set_object_acl
 from platine.utils.logger import log_event
 
+_IMAGE_EXTENSIONS = {".jpg", ".jpeg", ".png", ".gif", ".webp", ".bmp", ".tiff"}
+
+
+def _is_image(filename):
+    if not filename:
+        return False
+    return os.path.splitext(filename)[1].lower() in _IMAGE_EXTENSIONS
+
+
+def _generate_and_upload_thumbnail(file_doc, s3_key, is_private):
+    """Download original from S3, generate thumbnail, upload, store key on File doc."""
+    import tempfile
+    from platine.utils.s3 import download_file, upload_file
+
+    if not _is_image(file_doc.file_name):
+        return
+
+    ext = os.path.splitext(file_doc.file_name)[1]
+    tmp_original = None
+    tmp_thumb = None
+
+    try:
+        import PIL.Image as Image
+
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f:
+            tmp_original = f.name
+        with tempfile.NamedTemporaryFile(suffix=ext, delete=False) as f:
+            tmp_thumb = f.name
+
+        download_file(s3_key, tmp_original)
+
+        with Image.open(tmp_original) as img:
+            img.thumbnail((300, 300))
+            img.save(tmp_thumb)
+
+        thumb_filename = f"thumb_{file_doc.file_name}"
+        thumb_key = build_s3_key(thumb_filename, is_private=is_private)
+        upload_file(tmp_thumb, thumb_key, is_private=is_private)
+
+        frappe.db.set_value("File", file_doc.name, "platine_s3_thumbnail_key", thumb_key)
+        file_doc.platine_s3_thumbnail_key = thumb_key
+
+    except Exception as e:
+        frappe.log_error(
+            f"Platine: thumbnail generation error for presigned upload {file_doc.name}: {e}",
+            "Platine S3 Upload",
+        )
+    finally:
+        for path in (tmp_original, tmp_thumb):
+            if path and os.path.exists(path):
+                os.remove(path)
+
 
 _PENDING_KEY_PREFIX = "platine_pending_upload:"
 
@@ -95,6 +147,10 @@ def confirm_upload(s3_key, filename, is_private=0, file_size=0, doctype=None, do
     # Disable our after_insert hook for this doc (already on S3)
     file_doc.flags.platine_skip_upload = True
     file_doc.insert()
+
+    # Generate thumbnail for image uploads (after_insert is skipped for presigned uploads)
+    if _is_image(os.path.basename(filename)):
+        _generate_and_upload_thumbnail(file_doc, s3_key, is_private=bool(is_private))
 
     log_event(
         event_type="Upload",
