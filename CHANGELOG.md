@@ -7,6 +7,14 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.2.1] — 2026-04-13
+
+### Fixed
+
+- **Profile photo upload crash** — `frappe.ui.FileUploader` was `undefined` when `upload_override.js` ran before the file-uploader bundle. The override now captures any already-loaded class at define-time, so the getter never returns `undefined` regardless of bundle load order.
+
+---
+
 ## [1.2.0] — 2026-04-13
 
 ### Added

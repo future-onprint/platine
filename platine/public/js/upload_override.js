@@ -187,6 +187,13 @@
 	let _original = undefined;
 	let _patched = undefined;
 
+	// If FileUploader already loaded before this script, capture it now.
+	const _existing = frappe.ui.FileUploader;
+	if (typeof _existing === "function") {
+		_original = _existing;
+		_patched = _build_patched_class(_existing);
+	}
+
 	Object.defineProperty(frappe.ui, "FileUploader", {
 		configurable: true,
 		enumerable: true,
