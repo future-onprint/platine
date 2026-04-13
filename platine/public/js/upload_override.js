@@ -198,11 +198,21 @@
 		configurable: true,
 		enumerable: true,
 		get() {
-			return _patched;
+			// Fall back to original if patch build failed or setter not yet called.
+			return _patched ?? _original;
 		},
 		set(val) {
+			if (typeof val !== "function") {
+				_patched = val;
+				return;
+			}
 			_original = val;
-			_patched = _build_patched_class(val);
+			try {
+				_patched = _build_patched_class(val);
+			} catch (e) {
+				console.warn("[platine] FileUploader patch failed, using original", e);
+				_patched = val;
+			}
 		},
 	});
 })();

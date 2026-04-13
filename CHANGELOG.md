@@ -7,6 +7,14 @@ This project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.2.2] — 2026-04-13
+
+### Fixed
+
+- **FileUploader crash in File list "New" and other code paths** — the getter could still return `undefined` if `_build_patched_class` threw during the setter call (e.g. bad `Original` value) or if any other code path read `FileUploader` before the setter fired. The getter now falls back to `_original`, and the setter wraps `_build_patched_class` in a try/catch that falls back to the raw class. Worst case: presigned upload not active; no crash.
+
+---
+
 ## [1.2.1] — 2026-04-13
 
 ### Fixed
