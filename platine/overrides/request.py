@@ -37,10 +37,11 @@ def intercept_private_file_request():
     if os.path.exists(local_path):
         return
 
-    from platine.utils.s3 import build_s3_key, file_exists_on_s3, generate_presigned_get
+    from platine.utils.s3 import generate_presigned_get
 
-    s3_key = build_s3_key(filename, is_private=True)
-    if not file_exists_on_s3(s3_key):
+    file_url = f"/private/files/{filename}"
+    s3_key = frappe.db.get_value("File", {"file_url": file_url}, "platine_s3_key")
+    if not s3_key:
         return
 
     presigned_url = generate_presigned_get(s3_key)
